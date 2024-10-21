@@ -64,3 +64,11 @@ class VAE_Encoder(nn.Sequential):
 
         variance=log_variance.exp()
         stdev=variance.sqrt()
+
+        #Z=N(0,1) -> N(mean,variance)
+        #X=mean+stdev * Z 
+        x=mean+stdev * noise
+        #scale the output by a constant
+        x*=0.18215 
+
+        return x 
