@@ -86,6 +86,25 @@ def generate(prompt:str,uncond_prompt:str,input_image:Optional[PIL.Image.Image]=
         diffusion=models["diffusion"]
         diffusion.to(device)
         # timesteps are taken from 1000 to 0, if 50 steps are done, then 1000, 980 and so on till 0
+        timesteps=tqdm(sampler.timesteps):
+        for i,timestep in enumerate(timesteps):
+            # (1,320)
+            time_embedding=get_time_embedding(timestep).to(device)
+            # bz,4,h/8,w/8
+            model_input=latents
+            if do_cfg:
+                # (bz,4,h/8,w/8) -> (2*bz,4,h/8,w/8)
+                model_input=model_input.repeat(2,1,1,1)
+            model_output= diffusion(model_input,context,time_embedding)
+            if do_cfg:
+                # (2*bz,4,h/8,w/8) -> (bz,4,h/8,w/8)
+                output_cond,output_uncond=torch.chunk(model_output,2,dim=0)
+                model_output=(output_cond-output_uncond)*cfg_scale + output_uncond
+            else:
+                model_output=model_output
+            latents=sampler.step(timestep,latents,model_output)
+        
+        to_idle(diffusion)
         sampler.set_inference_steps(n_inference_steps)
         latents=sampler.sample(context,latents,generator)
 
