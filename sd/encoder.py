@@ -65,6 +65,7 @@ class VAE_Encoder(nn.Sequential):
         variance=log_variance.exp()
         stdev=variance.sqrt()
 
+        #intuitively, the noise is not the actual word for this, it should be a random sampling variable
         #Z=N(0,1) -> N(mean,variance)
         #X=mean+stdev * Z 
         x=mean+stdev * noise
