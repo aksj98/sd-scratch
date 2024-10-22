@@ -23,9 +23,9 @@ def get_time_embedding(timestep:int)->torch.Tensor:
     x=torch.tensor([timestep],dtype=torch.float32)[:,None]*freqs[None]
     return torch.cat([torch.cos(x),torch.sin(x)],dim=-1)
 
-def generate(prompt:str,uncond_prompt:str,input_image:Optional[PIL.Image.Image]=None, 
+def generate(prompt:str,uncond_prompt:str,input_image=None, 
              strength:int=0.8,do_cfg:bool=True, cfg_scale:float=7.5,sampler_name:str="ddpm",
-             n_inference_steps:int=50,models={},seed=None,device=None,idle_device=None,tokenizer=None)->PIL.Image.Image:
+             n_inference_steps:int=50,models={},seed=None,device=None,idle_device=None,tokenizer=None):
     
     with torch.no_grad():
         if not (0<strength<=1):
@@ -101,7 +101,7 @@ def generate(prompt:str,uncond_prompt:str,input_image:Optional[PIL.Image.Image]=
         diffusion=models["diffusion"]
         diffusion.to(device)
         # timesteps are taken from 1000 to 0, if 50 steps are done, then 1000, 980 and so on till 0
-        timesteps=tqdm(sampler.timesteps):
+        timesteps=tqdm(sampler.timesteps)
         for i,timestep in enumerate(timesteps):
             # (1,320)
             time_embedding=get_time_embedding(timestep).to(device)
