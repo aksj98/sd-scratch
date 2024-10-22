@@ -1,12 +1,27 @@
 import torch
 import numpy as np
-from tqdm import tdqm
+from tqdm import tqdm
 from ddpm import DDPMSampler
 
 WIDTH=512
 HEIGHT=512
 LATENTS_WIDTH= WIDTH//8
 LATENTS_HEIGHT= HEIGHT//8
+
+def rescale(x,old_range:tuple[int,int],new_range:tuple[int,int],clamp:bool=False):
+    old_min,old_max=old_range
+    new_min,new_max=new_range
+    x=(x-old_min)/(old_max-old_min)
+    x=(x*(new_max-new_min))+new_min
+    if clamp:
+        x=x.clamp(new_min,new_max)
+    return x
+
+def get_time_embedding(timestep:int)->torch.Tensor:
+    #160 is the number of frequencies used in the time embedding
+    freqs=torch.pow(10000, -torch.arange(0,160,dtype=torch.float32)/160)
+    x=torch.tensor([timestep],dtype=torch.float32)[:,None]*freqs[None]
+    return torch.cat([torch.cos(x),torch.sin(x)],dim=-1)
 
 def generate(prompt:str,uncond_prompt:str,input_image:Optional[PIL.Image.Image]=None, 
              strength:int=0.8,do_cfg:bool=True, cfg_scale:float=7.5,sampler_name:str="ddpm",
@@ -102,13 +117,19 @@ def generate(prompt:str,uncond_prompt:str,input_image:Optional[PIL.Image.Image]=
                 model_output=(output_cond-output_uncond)*cfg_scale + output_uncond
             else:
                 model_output=model_output
+            # remove noise predicted by the model (model_output) from the latents
             latents=sampler.step(timestep,latents,model_output)
         
         to_idle(diffusion)
-        sampler.set_inference_steps(n_inference_steps)
-        latents=sampler.sample(context,latents,generator)
 
         decoder=models["decoder"]
         decoder.to(device)
 
-        image=decoder(latents)
+        images=decoder(latents)
+        images=rescale(images,(-1,1),(0,255),clamp=True)
+        # b,c,h,w -> b,h,w,c
+        images=images.permute(0,2,3,1)
+        images=images.detach().cpu().numpy()
+        images=images.astype(np.uint8)
+        images=images[0]
+        return images
